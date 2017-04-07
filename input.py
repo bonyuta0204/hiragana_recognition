@@ -1,5 +1,6 @@
 
 import pandas as pd
+from sklearn.preprocessing import LabelBinarizer
 
 
 class Input(object):
@@ -9,9 +10,13 @@ class Input(object):
 
     def __init__(self,  train_file="train_data.csv",  test_file="test_data.csv"):
         # read data and nomalization to [0, 1]
-        self.train_data = pd.read_csv(train_file) / 255
-        self.test_data = pd.read_csv(test_file) / 255
+        self.train_data = pd.read_csv(train_file)
+        self.test_data = pd.read_csv(test_file)
 
+        self.labels = list(set(self.train_data["label"]))
+
+        self.lb = LabelBinarizer()
+        self.lb.fit(self.labels)
 
     def train_batch(self, n=100):
         """
@@ -23,8 +28,8 @@ class Input(object):
         """
 
         sample = self.train_data.sample(n=n,  axis=0)
-        print(sample.shape)
-        return sample.iloc[:, :-1], sample.iloc[:, -1]
+
+        return sample.iloc[:, :-1], self.lb.transform(sample.iloc[:, -1])
 
     def test_batch(self, n=100):
         """
@@ -36,11 +41,13 @@ class Input(object):
         """
 
         sample = self.test_data.sample(n=n, axis=0)
-        print(sample.shape)
-        return sample.iloc[:, :-1], sample.iloc[:, -1]
+
+        return sample.iloc[:, :-1], self.lb.transform(sample.iloc[:, -1])
 
 
 if __name__  == "__main__":
     Data = Input()
-    print(Data.train_batch())
+    xs, ys = Data.test_batch(n=100)
+    print(xs.shape)
+    print(ys.shape)
 
