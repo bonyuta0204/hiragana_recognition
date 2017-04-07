@@ -7,9 +7,22 @@ import numpy as np
 
 IMAGE_HEIGHT = 64
 IMAGE_WIDTH = 64
-LOG_DIR = "/Users/Yuta/Python/Hiragana/Log"
+LOG_DIR = "/Users/Yuta/Python/Hiragana/Log2"
 
 Data = input.Input()
+
+
+def variable_summaries(var, name=None):
+  """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+  with tf.name_scope('summaries'):
+    mean = tf.reduce_mean(var)
+    tf.summary.scalar(name + 'mean', mean)
+    with tf.name_scope('stddev'):
+      stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+    tf.summary.scalar(name + 'stddev', stddev)
+    tf.summary.scalar(name + 'max', tf.reduce_max(var))
+    tf.summary.scalar(name + 'min', tf.reduce_min(var))
+    tf.summary.histogram(name + 'histogram', var)
 
 
 def inference(features, keep_prob=1):
@@ -101,7 +114,8 @@ def get_train_op(loss, global_step):
         gradients = optimizer.compute_gradients(loss)
         # add summay to
         for grad, var in gradients:
-            tf.summary.histogram(var.name, grad)
+                   # tf.summary.histogram(var.name, grad)
+            variable_summaries(grad, name=var.name)
 
         train_step = optimizer.apply_gradients(gradients, global_step=global_step)
     return train_step
