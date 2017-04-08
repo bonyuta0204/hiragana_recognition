@@ -11,8 +11,9 @@ class Input(object):
     def __init__(self,  train_file="train_data.csv",  test_file="test_data.csv"):
         # read data and nomalization to [0, 1]
         self.train_data = pd.read_csv(train_file)
+        print("Train Data Shape: %s" % str(self.train_data.shape))
         self.test_data = pd.read_csv(test_file)
-
+        print("Test Data Shape: %s" % str(self.test_data.shape))
         self.labels = list(set(self.train_data["label"]))
 
         self.lb = LabelBinarizer()
@@ -48,6 +49,4 @@ class Input(object):
 if __name__  == "__main__":
     Data = Input()
     xs, ys = Data.test_batch(n=100)
-    print(xs.shape)
-    print(ys.shape)
 

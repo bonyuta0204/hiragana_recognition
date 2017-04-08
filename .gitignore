@@ -4,4 +4,6 @@ ETL8G/
 .ipynb_checkpoints
 data_hiragana/
 data_all/
-
+Log*/
+.idea/
+*.ipnb

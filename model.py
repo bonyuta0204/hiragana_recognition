@@ -5,9 +5,9 @@ import input
 import input
 import numpy as np
 
-IMAGE_HEIGHT = 64
-IMAGE_WIDTH = 64
-LOG_DIR = "/Users/Yuta/Python/Hiragana/Log2"
+IMAGE_HEIGHT = 32
+IMAGE_WIDTH = 32
+LOG_DIR = "/Users/Yuta/Python/Hiragana/Log_32"
 
 Data = input.Input()
 
@@ -79,10 +79,10 @@ def inference(features, keep_prob=1):
 
         h2_pooled = max_pool_2x2(h2)
         # h2_pooled has shape of (batch. 16, 16, 64)
-        h2_flattend = tf.reshape(h2_pooled, [-1, 16 * 16 * 64])
+        h2_flattend = tf.reshape(h2_pooled, [-1, (int(IMAGE_HEIGHT/4)) * (int(IMAGE_WIDTH/4)) * 64])
 
     with tf.variable_scope("fc1"):
-        weight_fc1 = weight_variable("weight", shape=[16 * 16 * 64, 1024])
+        weight_fc1 = weight_variable("weight", shape=[(int(IMAGE_HEIGHT/4)) * (int(IMAGE_WIDTH/4)) * 64, 1024])
         bias_fc1 = bias_variable("bias", shape=[1024])
 
         h_fc1 = tf.nn.relu(tf.matmul(h2_flattend, weight_fc1) + bias_fc1)
@@ -94,8 +94,9 @@ def inference(features, keep_prob=1):
         weight_fc2 = weight_variable("weight", shape=[1024, 75])
         bias2 = bias_variable("bias", shape=[75])
 
-        logits = tf.matmul(h_fc1, weight_fc2) + bias2
+        logits = tf.matmul(h_fc1_dropped, weight_fc2) + bias2
 
+        # logits = tf.matmul(h_fc1, weight_fc2) + bias2
     return logits
 
 
@@ -177,17 +178,17 @@ def train(step=100, batch_size=100):
                     time_passed = time.time() - start_time
                     print("step: %5d, accuracy: %4f, time passed: %4.2f" % (step, accuracy, time_passed))
 
-                    summary, _ = sess.run([merged, train_op], feed_dict={x: x_train, y_: y_train, k: 0.5})
+                    summary, _ = sess.run([merged, train_op], feed_dict={x: x_train, y_: y_train, k: 1.0})
                     train_writer.add_summary(summary, global_step=g_step)
                 else:
-                    sess.run(train_op, feed_dict={x: x_train, y_: y_train, k: 0.5})
+                    sess.run(train_op, feed_dict={x: x_train, y_: y_train, k: 1.0})
 
                 if step % 300 == 299:
                     save_model(sess, saver=saver, global_step=g_step)
 
 
 def read_model(session, saver):
-    path_of_model = tf.train.latest_checkpoint(LOG_DIR + "/model")
+    path_of_model = tf.train.latest_checkpoint(LOG_DIR)
     if path_of_model is None:
         print("Model not found. Failed to restore")
     else:
@@ -196,9 +197,9 @@ def read_model(session, saver):
 
 
 def save_model(session, saver, global_step):
-    save_path = saver.save(session, LOG_DIR + "/model/model.ckpt", global_step=global_step)
+    save_path = saver.save(session, LOG_DIR + "/model.ckpt", global_step=global_step)
     print("Model saved in file: %s" % save_path)
 
 
 if __name__ == "__main__":
-    train(step=3000)
+    train(step=12000)

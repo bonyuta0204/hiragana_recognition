@@ -11,7 +11,7 @@ from PIL import Image
 # In[2]:
 
 size_of_data = 8199
-size_of_batch = 956
+size_of_batch = 4780
 
 
 # In[3]:
@@ -39,7 +39,7 @@ for n in range(32):
             # print( data[0:-2], hex(data[1]), hex(data[1])[-4:])
             iE = Image.eval(data[-1], lambda x: 255 - x * 16)
             fn = 'ETL8G_{:d}_{:s}.png'.format(data[0], hex(data[1])[-4:])
-            iE.save(fn, 'PNG')
+            iE.save("data_all/" + fn, 'PNG')
             # print("data No %3d colleted" % i)
     print("FILE NO:%2d finished" % n)
 

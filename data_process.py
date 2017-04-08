@@ -13,8 +13,8 @@ IMAGE_WIDTH = 128
 
 def file_name_to_label(filename):
     # to get hex value of character code
-    hex_label = re.findall("24\w{2}", filename)
-    char = hex_label[0][2:]
+    hex_label = re.findall("24\w{2}\.png", filename)
+    char = hex_label[0][2:4]
     label = int(char, 16)
     # to make label start from 0
     return label - 34
@@ -104,13 +104,13 @@ def make_csv(data, sprit=None):
         Dataframe.to_csv("labeled_data.csv", index=False)
     else:
         # sprit the data
-        train, test = train_test_split(Dataframe, train_size=sprit, random_state=0)
+        train, test = train_test_split(Dataframe, test_size=sprit, random_state=0)
         # write to csv
         train.to_csv("train_data.csv", index=False)
         test.to_csv("test_data.csv", index=False)
 
 
 if __name__ == "__main__":
-    data = make_dataset(shape=(64, 64))
+    data = make_dataset(shape=(32, 32))
     print("finish loading data. now writing......")
     make_csv(data, sprit=0.2)
