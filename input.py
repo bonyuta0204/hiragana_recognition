@@ -30,7 +30,7 @@ class Input(object):
 
         sample = self.train_data.sample(n=n,  axis=0)
 
-        return sample.iloc[:, :-1], self.lb.transform(sample.iloc[:, -1])
+        return sample.iloc[:, :-1] / 255, self.lb.transform(sample.iloc[:, -1])
 
     def test_batch(self, n=100):
         """
@@ -43,10 +43,11 @@ class Input(object):
 
         sample = self.test_data.sample(n=n, axis=0)
 
-        return sample.iloc[:, :-1], self.lb.transform(sample.iloc[:, -1])
+        return sample.iloc[:, :-1] / 255, self.lb.transform(sample.iloc[:, -1])
 
 
 if __name__  == "__main__":
     Data = Input()
     xs, ys = Data.test_batch(n=100)
+    print(xs)
 

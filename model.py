@@ -1,18 +1,17 @@
 import tensorflow as tf
 import time
-import input
 
 import input
 import numpy as np
 
 IMAGE_HEIGHT = 32
 IMAGE_WIDTH = 32
-LOG_DIR = "/Users/Yuta/Python/Hiragana/Log_32"
+LOG_DIR = "/Users/Yuta/Python/Hiragana/Log_drop_out"
 
 Data = input.Input()
 
 
-def variable_summaries(var, name=None):
+def variable_summaries(var, name=""):
   """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
   with tf.name_scope('summaries'):
     mean = tf.reduce_mean(var)
@@ -97,10 +96,17 @@ def inference(features, keep_prob=1):
         logits = tf.matmul(h_fc1_dropped, weight_fc2) + bias2
 
         # logits = tf.matmul(h_fc1, weight_fc2) + bias2
+    with tf.name_scope("logits"):
+        variable_summaries(logits)
+
     return logits
 
 
 def cross_entropy(labels, logits):
+    with tf.name_scope("softmax"):
+        soft_max = tf.nn.softmax(logits, name="soft_max")
+        variable_summaries(soft_max)
+
     with tf.name_scope("cross_entropy"):
         cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
     tf.summary.scalar("cross_entropy", cross_entropy)
@@ -173,15 +179,18 @@ def train(step=100, batch_size=100):
                 if step % 50 == 0:
                     # record test data
                     x_test, y_test = Data.test_batch(1000)
-                    summary, accuracy = sess.run([merged, acc], feed_dict={x: x_test, y_: y_test, k: 1})
+                    summary, accuracy, c_entropy = sess.run([merged, acc, loss], feed_dict={x: x_test, y_: y_test, k: 1})
                     test_writer.add_summary(summary, global_step=g_step)
                     time_passed = time.time() - start_time
-                    print("step: %5d, accuracy: %4f, time passed: %4.2f" % (step, accuracy, time_passed))
 
-                    summary, _ = sess.run([merged, train_op], feed_dict={x: x_train, y_: y_train, k: 1.0})
+
+                    print("step: %5d, accuracy: %.4f, time passed: %7.2f,  Cross Entropy: %5.2f"
+                          % (step, accuracy, time_passed, c_entropy))
+
+                    summary, _ = sess.run([merged, train_op], feed_dict={x: x_train, y_: y_train, k: 0.5})
                     train_writer.add_summary(summary, global_step=g_step)
                 else:
-                    sess.run(train_op, feed_dict={x: x_train, y_: y_train, k: 1.0})
+                    sess.run(train_op, feed_dict={x: x_train, y_: y_train, k: 0.5})
 
                 if step % 300 == 299:
                     save_model(sess, saver=saver, global_step=g_step)
