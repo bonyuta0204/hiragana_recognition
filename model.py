@@ -12,16 +12,16 @@ Data = input.Input()
 
 
 def variable_summaries(var, name=""):
-  """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
-  with tf.name_scope('summaries'):
-    mean = tf.reduce_mean(var)
-    tf.summary.scalar(name + 'mean', mean)
-    with tf.name_scope('stddev'):
-      stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-    tf.summary.scalar(name + 'stddev', stddev)
-    tf.summary.scalar(name + 'max', tf.reduce_max(var))
-    tf.summary.scalar(name + 'min', tf.reduce_min(var))
-    tf.summary.histogram(name + 'histogram', var)
+    """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+    with tf.name_scope('summaries'):
+        mean = tf.reduce_mean(var)
+        tf.summary.scalar(name + 'mean', mean)
+        with tf.name_scope('stddev'):
+            stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+        tf.summary.scalar(name + 'stddev', stddev)
+        tf.summary.scalar(name + 'max', tf.reduce_max(var))
+        tf.summary.scalar(name + 'min', tf.reduce_min(var))
+        tf.summary.histogram(name + 'histogram', var)
 
 
 def inference(features, keep_prob=1):
@@ -31,7 +31,9 @@ def inference(features, keep_prob=1):
         imput featues. shape(batch_size, IMAGE_HIGHT * IMAGE * WIDTH)
     :return: logits
     """
-    x = tf.reshape(features, [-1, IMAGE_HEIGHT, IMAGE_WIDTH, 1], name="input_image")
+    x = tf.reshape(features,
+                   [-1, IMAGE_HEIGHT, IMAGE_WIDTH, 1],
+                   name="input_image")
 
     # define some functions
     def weight_variable(name, shape, stddev=0.2):
@@ -40,7 +42,10 @@ def inference(features, keep_prob=1):
         :param shape: list
         :return: tf.Variable which is initialized
         """
-        var = tf.get_variable(name, shape, initializer=tf.truncated_normal_initializer(stddev=stddev))
+        var = tf.get_variable(name,
+                              shape,
+                              initializer=
+                              tf.truncated_normal_initializer(stddev=stddev))
         return var
 
     def bias_variable(name, shape, const=0.1):
@@ -49,7 +54,8 @@ def inference(features, keep_prob=1):
         :param shape: list
         :return: tf.Variable which is initialized
         """
-        var = tf.get_variable(name, shape, initializer=tf.constant_initializer(const))
+        var = tf.get_variable(name, shape,
+                              initializer=tf.constant_initializer(const))
         return var
 
     def conv2d(x, W):
@@ -62,7 +68,8 @@ def inference(features, keep_prob=1):
         """
         do pooling
         """
-        return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding="SAME")
+        return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
+                              strides=[1, 2, 2, 1], padding="SAME")
 
     with tf.variable_scope("conv1"):
         weight_1 = weight_variable("weight", shape=[5, 5, 1, 32])
@@ -78,10 +85,16 @@ def inference(features, keep_prob=1):
 
         h2_pooled = max_pool_2x2(h2)
         # h2_pooled has shape of (batch. 16, 16, 64)
-        h2_flattend = tf.reshape(h2_pooled, [-1, (int(IMAGE_HEIGHT/4)) * (int(IMAGE_WIDTH/4)) * 64])
+        h2_flattend = tf.reshape(h2_pooled,
+                                 [-1, (int(IMAGE_HEIGHT / 4))
+                                  * (int(IMAGE_WIDTH / 4)) * 64])
 
     with tf.variable_scope("fc1"):
-        weight_fc1 = weight_variable("weight", shape=[(int(IMAGE_HEIGHT/4)) * (int(IMAGE_WIDTH/4)) * 64, 1024])
+        weight_fc1 = weight_variable("weight",
+                                     shape=[(int(IMAGE_HEIGHT / 4))
+                                            * (int(IMAGE_WIDTH / 4)) * 64,
+                                            1024])
+
         bias_fc1 = bias_variable("bias", shape=[1024])
 
         h_fc1 = tf.nn.relu(tf.matmul(h2_flattend, weight_fc1) + bias_fc1)
@@ -108,23 +121,24 @@ def cross_entropy(labels, logits):
         variable_summaries(soft_max)
 
     with tf.name_scope("cross_entropy"):
-        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
+        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits
+                                       (labels=labels, logits=logits))
     tf.summary.scalar("cross_entropy", cross_entropy)
 
     return cross_entropy
 
 
 def get_train_op(loss, global_step):
-    # train_step = tf.train.AdamOptimizer(1e-4).minimize(loss, global_step=global_step)
     with tf.name_scope("Adam"):
         optimizer = tf.train.AdamOptimizer(1e-4)
         gradients = optimizer.compute_gradients(loss)
         # add summay to
         for grad, var in gradients:
-                   # tf.summary.histogram(var.name, grad)
+            # tf.summary.histogram(var.name, grad)
             variable_summaries(grad, name=var.name)
 
-        train_step = optimizer.apply_gradients(gradients, global_step=global_step)
+        train_step = optimizer.apply_gradients(gradients,
+                                               global_step=global_step)
     return train_step
 
 
@@ -179,18 +193,25 @@ def train(step=100, batch_size=100):
                 if step % 50 == 0:
                     # record test data
                     x_test, y_test = Data.test_batch(1000)
-                    summary, accuracy, c_entropy = sess.run([merged, acc, loss], feed_dict={x: x_test, y_: y_test, k: 1})
+                    summary, accuracy, c_entropy = sess.run([merged, acc, loss],
+                                                            feed_dict={x:
+                                                                       x_test,
+                                                                       y_: y_test,
+                                                                       k: 1})
                     test_writer.add_summary(summary, global_step=g_step)
                     time_passed = time.time() - start_time
 
+                    print(
+                        "step: %5d, accuracy: %.4f, time passed: %7.2f,  Cross Entropy: %5.2f"
+                        % (step, accuracy, time_passed, c_entropy))
 
-                    print("step: %5d, accuracy: %.4f, time passed: %7.2f,  Cross Entropy: %5.2f"
-                          % (step, accuracy, time_passed, c_entropy))
-
-                    summary, _ = sess.run([merged, train_op], feed_dict={x: x_train, y_: y_train, k: 0.5})
+                    summary, _ = sess.run([merged, train_op],
+                                          feed_dict={x: x_train, y_: y_train,
+                                                     k: 0.5})
                     train_writer.add_summary(summary, global_step=g_step)
                 else:
-                    sess.run(train_op, feed_dict={x: x_train, y_: y_train, k: 0.5})
+                    sess.run(train_op,
+                             feed_dict={x: x_train, y_: y_train, k: 0.5})
 
                 if step % 300 == 299:
                     save_model(sess, saver=saver, global_step=g_step)
@@ -206,7 +227,8 @@ def read_model(session, saver):
 
 
 def save_model(session, saver, global_step):
-    save_path = saver.save(session, LOG_DIR + "/model.ckpt", global_step=global_step)
+    save_path = saver.save(session, LOG_DIR + "/model.ckpt",
+                           global_step=global_step)
     print("Model saved in file: %s" % save_path)
 
 
