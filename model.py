@@ -34,6 +34,7 @@ def inference(features, keep_prob=1):
     x = tf.reshape(features,
                    [-1, IMAGE_HEIGHT, IMAGE_WIDTH, 1],
                    name="input_image")
+    # tf.summary.image("input", x, max_outputs=5)
 
     # define some functions
     def weight_variable(name, shape, stddev=0.2):
@@ -233,4 +234,4 @@ def save_model(session, saver, global_step):
 
 
 if __name__ == "__main__":
-    train(step=12000)
+    train(step=20000)
