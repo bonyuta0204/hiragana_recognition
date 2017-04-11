@@ -80,23 +80,28 @@ def inference(features, is_training):
         return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
                               strides=[1, 2, 2, 1], padding="SAME")
 
+    # actually building model
     with tf.variable_scope("conv1"):
         weight_1 = weight_variable("weight", shape=[5, 5, 1, 32])
         bias1 = bias_variable("bias", shape=[32])
-        h1 = tf.nn.relu(conv2d(x, weight_1) + bias1)
+        h1 = conv2d(x, weight_1) + bias1
 
         h1 = tf.layers.batch_normalization(h1, training=is_training,
+                                           scale=False,
                                            name="batch_normalization")
-
+        h1 = tf.nn.relu(h1)
         h1_pooled = max_pool_2x2(h1)
 
     with tf.variable_scope("conv2"):
         weight_2 = weight_variable("weight", shape=[3, 3, 32, 64])
         bias2 = bias_variable("bias", shape=[64])
 
-        h2 = tf.nn.relu(conv2d(h1_pooled, weight_2) + bias2)
+
+        h2 = conv2d(h1_pooled, weight_2) + bias2
         h2 = tf.layers.batch_normalization(h2, training=is_training,
+                                           scale=False,
                                            name="batch_normalization")
+        h2 = tf.nn.relu(h2)
 
         h2_pooled = max_pool_2x2(h2)
         # h2_pooled has shape of (batch. 16, 16, 64)
@@ -112,9 +117,11 @@ def inference(features, is_training):
 
         bias_fc1 = bias_variable("bias", shape=[1024])
 
-        h_fc1 = tf.nn.relu(tf.matmul(h2_flattend, weight_fc1) + bias_fc1)
+        h_fc1 = tf.matmul(h2_flattend, weight_fc1) + bias_fc1
         h_fc1_bn = tf.layers.batch_normalization(h_fc1, training=is_training,
+                                                 scale=False,
                                                  name="batch_normalization")
+        h_fc1_bn = tf.nn.relu(h_fc1_bn)
 
     with tf.name_scope("dropout"):
         # drop_out
