@@ -3,30 +3,34 @@ import time
 
 import input
 import numpy as np
+import argparse
+
+FLAGS = None
 
 IMAGE_HEIGHT = 32
 IMAGE_WIDTH = 32
-LOG_DIR = "/Users/Yuta/Python/Hiragana/Log_drop_out"
+LOG_DIR = "/Users/Yuta/Python/Hiragana/Log_bn"
 
 Data = input.Input()
 
 
 def variable_summaries(var, name=""):
     """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
-    with tf.name_scope('summaries'):
-        mean = tf.reduce_mean(var)
-        tf.summary.scalar(name + 'mean', mean)
-        with tf.name_scope('stddev'):
-            stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-        tf.summary.scalar(name + 'stddev', stddev)
-        tf.summary.scalar(name + 'max', tf.reduce_max(var))
-        tf.summary.scalar(name + 'min', tf.reduce_min(var))
-        tf.summary.histogram(name + 'histogram', var)
+
+    mean = tf.reduce_mean(var)
+    tf.summary.scalar(name + 'mean', mean)
+    with tf.name_scope('stddev'):
+        stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+    tf.summary.scalar(name + 'stddev', stddev)
+    tf.summary.scalar(name + 'max', tf.reduce_max(var))
+    tf.summary.scalar(name + 'min', tf.reduce_min(var))
+    tf.summary.histogram(name + 'histogram', var)
 
 
-def inference(features, keep_prob=1):
+def inference(features, is_training):
     """
 
+    :param is_training:
     :param features:  Tensor
         imput featues. shape(batch_size, IMAGE_HIGHT * IMAGE * WIDTH)
     :return: logits
@@ -34,9 +38,13 @@ def inference(features, keep_prob=1):
     x = tf.reshape(features,
                    [-1, IMAGE_HEIGHT, IMAGE_WIDTH, 1],
                    name="input_image")
-    # tf.summary.image("input", x, max_outputs=5)
+
+    k = tf.cond(is_training, lambda: tf.constant(0.5, tf.float32),
+                lambda: tf.constant(1.0, tf.float32))
+    tf.summary.scalar("keep_prob", k)
 
     # define some functions
+
     def weight_variable(name, shape, stddev=0.2):
         """
         return weight which has shape=shape
@@ -77,12 +85,18 @@ def inference(features, keep_prob=1):
         bias1 = bias_variable("bias", shape=[32])
         h1 = tf.nn.relu(conv2d(x, weight_1) + bias1)
 
+        h1 = tf.layers.batch_normalization(h1, training=is_training,
+                                           name="batch_normalization")
+
         h1_pooled = max_pool_2x2(h1)
 
     with tf.variable_scope("conv2"):
         weight_2 = weight_variable("weight", shape=[3, 3, 32, 64])
         bias2 = bias_variable("bias", shape=[64])
+
         h2 = tf.nn.relu(conv2d(h1_pooled, weight_2) + bias2)
+        h2 = tf.layers.batch_normalization(h2, training=is_training,
+                                           name="batch_normalization")
 
         h2_pooled = max_pool_2x2(h2)
         # h2_pooled has shape of (batch. 16, 16, 64)
@@ -99,19 +113,19 @@ def inference(features, keep_prob=1):
         bias_fc1 = bias_variable("bias", shape=[1024])
 
         h_fc1 = tf.nn.relu(tf.matmul(h2_flattend, weight_fc1) + bias_fc1)
+        h_fc1_bn = tf.layers.batch_normalization(h_fc1, training=is_training,
+                                                 name="batch_normalization")
 
+    with tf.name_scope("dropout"):
         # drop_out
-        h_fc1_dropped = tf.nn.dropout(h_fc1, keep_prob=keep_prob)
+
+        h_fc1_dropped = tf.nn.dropout(h_fc1_bn, keep_prob=k, name="dropout")
 
     with tf.variable_scope("fc2"):
         weight_fc2 = weight_variable("weight", shape=[1024, 75])
         bias2 = bias_variable("bias", shape=[75])
 
         logits = tf.matmul(h_fc1_dropped, weight_fc2) + bias2
-
-        # logits = tf.matmul(h_fc1, weight_fc2) + bias2
-    with tf.name_scope("logits"):
-        variable_summaries(logits)
 
     return logits
 
@@ -131,15 +145,18 @@ def cross_entropy(labels, logits):
 
 def get_train_op(loss, global_step):
     with tf.name_scope("Adam"):
-        optimizer = tf.train.AdamOptimizer(1e-4)
-        gradients = optimizer.compute_gradients(loss)
-        # add summay to
-        for grad, var in gradients:
-            # tf.summary.histogram(var.name, grad)
-            variable_summaries(grad, name=var.name)
-
-        train_step = optimizer.apply_gradients(gradients,
-                                               global_step=global_step)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            # Ensures that we execute the update_ops before performing the train_step
+            optimizer = tf.train.AdamOptimizer(1e-4)
+            gradients = optimizer.compute_gradients(loss)
+            # add summay to
+            for grad, var in gradients:
+                # add summary for gradient
+                # variable_summaries(grad, name=var.name)
+                pass
+            train_step = optimizer.apply_gradients(gradients,
+                                                   global_step=global_step)
     return train_step
 
 
@@ -162,14 +179,28 @@ def train(step=100, batch_size=100):
         with tf.name_scope('label'):
             y_ = tf.placeholder(tf.float32, [None, 75])
 
-        k = tf.placeholder(tf.float32, name="keep_prob")
+        # k = tf.placeholder(tf.float32, name="keep_prob")
+        is_training = tf.placeholder(tf.bool, name="is_training")
+
+        logits = inference(x, is_training)
+
+        var_list = tf.global_variables()
+        # add summary of variable
+        with tf.name_scope("Summaries"):
+            for var in var_list:
+                print(var.name)
+                variable_summaries(var, name=var.name)
+
+        # define global_step
         global_step = tf.Variable(0, trainable=False, name='global_step')
 
-        logits = inference(x, k)
-        var_list = tf.global_variables()
+        # add global_step to var_list
+        var_list.append(global_step)
 
+        # define loss
         loss = cross_entropy(y_, logits)
 
+        # define train op
         train_op = get_train_op(loss, global_step=global_step)
         acc = get_accuracy(y_, logits)
 
@@ -196,9 +227,9 @@ def train(step=100, batch_size=100):
                     x_test, y_test = Data.test_batch(1000)
                     summary, accuracy, c_entropy = sess.run([merged, acc, loss],
                                                             feed_dict={x:
-                                                                       x_test,
+                                                                           x_test,
                                                                        y_: y_test,
-                                                                       k: 1})
+                                                                       is_training: False})
                     test_writer.add_summary(summary, global_step=g_step)
                     time_passed = time.time() - start_time
 
@@ -208,11 +239,12 @@ def train(step=100, batch_size=100):
 
                     summary, _ = sess.run([merged, train_op],
                                           feed_dict={x: x_train, y_: y_train,
-                                                     k: 0.5})
+                                                     is_training: True})
                     train_writer.add_summary(summary, global_step=g_step)
                 else:
                     sess.run(train_op,
-                             feed_dict={x: x_train, y_: y_train, k: 0.5})
+                             feed_dict={x: x_train, y_: y_train,
+                                        is_training: True})
 
                 if step % 300 == 299:
                     save_model(sess, saver=saver, global_step=g_step)
@@ -234,4 +266,11 @@ def save_model(session, saver, global_step):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="train model")
+    parser.add_argument("--dir", type=str, default="Log",
+                        help="directory to save logs. default : Log")
+    FLAGS = parser.parse_args()
+    LOG_DIR = "/Users/Yuta/Python/Hiragana/" + FLAGS.dir
+    print(LOG_DIR)
+
     train(step=20000)
