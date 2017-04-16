@@ -9,7 +9,8 @@ FLAGS = None
 
 IMAGE_HEIGHT = 32
 IMAGE_WIDTH = 32
-LOG_DIR = "/Users/Yuta/Python/Hiragana/Log_bn"
+# LOG_DIR = "/Users/Yuta/Python/Hiragana/Log_bn_improved"
+LOG_DIR = None
 
 Data = input.Input()
 
@@ -96,7 +97,6 @@ def inference(features, is_training):
         weight_2 = weight_variable("weight", shape=[3, 3, 32, 64])
         bias2 = bias_variable("bias", shape=[64])
 
-
         h2 = conv2d(h1_pooled, weight_2) + bias2
         h2 = tf.layers.batch_normalization(h2, training=is_training,
                                            scale=False,
@@ -108,6 +108,7 @@ def inference(features, is_training):
         h2_flattend = tf.reshape(h2_pooled,
                                  [-1, (int(IMAGE_HEIGHT / 4))
                                   * (int(IMAGE_WIDTH / 4)) * 64])
+        h2_flattend = tf.nn.dropout(h2_flattend, keep_prob=k, name="dropout")
 
     with tf.variable_scope("fc1"):
         weight_fc1 = weight_variable("weight",
@@ -153,15 +154,20 @@ def cross_entropy(labels, logits):
 def get_train_op(loss, global_step):
     with tf.name_scope("Adam"):
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        lr = tf.cond(global_step < 5000,
+                     lambda: tf.constant(0.001, dtype=tf.float32),
+                     lambda: tf.constant(0.0001, dtype=tf.float32))
+
+        tf.summary.scalar("learning rate", lr)
         with tf.control_dependencies(update_ops):
             # Ensures that we execute the update_ops before performing the train_step
-            optimizer = tf.train.AdamOptimizer(1e-4)
+            optimizer = tf.train.AdamOptimizer(lr)
             gradients = optimizer.compute_gradients(loss)
             # add summay to
             for grad, var in gradients:
                 # add summary for gradient
-                # variable_summaries(grad, name=var.name)
-                pass
+                variable_summaries(grad, name=var.name)
+                # pass
             train_step = optimizer.apply_gradients(gradients,
                                                    global_step=global_step)
     return train_step
@@ -195,7 +201,6 @@ def train(step=100, batch_size=100):
         # add summary of variable
         with tf.name_scope("Summaries"):
             for var in var_list:
-                print(var.name)
                 variable_summaries(var, name=var.name)
 
         # define global_step
@@ -218,7 +223,7 @@ def train(step=100, batch_size=100):
 
         with tf.Session() as sess:
             tf.global_variables_initializer().run()
-            read_model(sess, saver=saver)
+            read_model(sess, saver=saver, log=LOG_DIR)
 
             test_writer = tf.summary.FileWriter(LOG_DIR + "/test", sess.graph)
             train_writer = tf.summary.FileWriter(LOG_DIR + "/train")
@@ -254,11 +259,13 @@ def train(step=100, batch_size=100):
                                         is_training: True})
 
                 if step % 300 == 299:
-                    save_model(sess, saver=saver, global_step=g_step)
+                    save_model(sess, saver=saver, global_step=g_step,
+                               log=LOG_DIR)
 
 
-def read_model(session, saver):
-    path_of_model = tf.train.latest_checkpoint(LOG_DIR)
+def read_model(session, saver, log):
+    print(log)
+    path_of_model = tf.train.latest_checkpoint(log)
     if path_of_model is None:
         print("Model not found. Failed to restore")
     else:
@@ -266,8 +273,8 @@ def read_model(session, saver):
         print("Model restored from %s." % path_of_model)
 
 
-def save_model(session, saver, global_step):
-    save_path = saver.save(session, LOG_DIR + "/model.ckpt",
+def save_model(session, saver, global_step, log):
+    save_path = saver.save(session, log + "/model.ckpt",
                            global_step=global_step)
     print("Model saved in file: %s" % save_path)
 
@@ -277,7 +284,7 @@ if __name__ == "__main__":
     parser.add_argument("--dir", type=str, default="Log",
                         help="directory to save logs. default : Log")
     FLAGS = parser.parse_args()
-    LOG_DIR = "/Users/Yuta/Python/Hiragana/" + FLAGS.dir
+    LOG_DIR = "/Users/Yuta/Python/Hiragana/Log/" + FLAGS.dir
     print(LOG_DIR)
 
     train(step=20000)
